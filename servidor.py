@@ -35,7 +35,7 @@ def iniciar_banco():
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS alunos (
             id_aluno INT AUTO_INCREMENT PRIMARY KEY,
-            turma VARCHAR(10),
+            turma VARCHAR(10) UNIQUE,
             nome_aluno VARCHAR(100),
             ra CHAR(14)
         )
@@ -45,6 +45,7 @@ def iniciar_banco():
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS maquinas (
             id_maquina INT AUTO_INCREMENT PRIMARY KEY,
+            codigo_serie VARCHAR(50) UNIQUE,
             nome_maquina VARCHAR(20),
             descricao TEXT,
             status_maquina ENUM('disponivel', 'em manutencao', 'analise') DEFAULT 'disponivel'
@@ -340,6 +341,66 @@ def limpar_todos_logs():
     conn.close()
     return jsonify({"status": "OK"}), 200
 
+@app.route('/api/notebooks', methods=['GET'])
+@login_obrigatorio
+def listar_notebooks():
+    """Lista todos os notebooks disponíveis"""
+    conn = obter_conexao()
+    cursor = conn.cursor()
+
+    cursor.execute('''
+        SELECT id_maquina, nome_maquina
+        FROM maquinas
+        WHERE status = 'DISPONIVEL'
+        ORDER BY nome_maquina
+    ''')
+
+    notebooks = [dict(row) for row in cursor.fetchall()]
+    conn.close()
+
+    return jsonify(notebooks), 200
+
+
+# @api.route('/api/cadastrar-notebook', methods=['POST'])
+# @login_obrigatorio
+# def cadastrar_notebook():
+
+#     if 'excel' not in request.files:
+#         return jsonify({"mensagem": "Nenhum arquivo enviado"}), 400
+    
+#     arquivo = request.files['excel']
+    
+#     if arquivo.filename == '':
+#         return jsonify({"mensagem": "Nome do arquivo vazio"}), 400
+    
+#     # Verifica extensão
+#     if not arquivo.filename.endswith(('.xlsx', '.xls')):
+#         return jsonify({"mensagem": "Formato inválido. Use .xlsx ou .xls"}), 400
+    
+#     try:
+#         # Importa o pandas (se não tiver, instale com pip install pandas openpyxl)
+#         import pandas as pd
+        
+#         # Lê o Excel
+#         df = pd.read_excel(arquivo)
+        
+#         # Verifica se tem as colunas necessárias
+#         coluna_turma = None
+#         coluna_aluno = None
+        
+#         for col in df.columns:
+#             if 'turma' in col.lower():
+#                 coluna_turma = col
+#             if 'aluno' in col.lower() or 'nome' in col.lower():
+#                 coluna_aluno = col
+        
+#         if not coluna_turma or not coluna_aluno:
+#             return jsonify({
+#                 "mensagem": "Arquivo deve ter colunas 'turma' e 'nome_aluno' (ou 'aluno')"
+#             }), 400
+        
+#         total_importados = 0
+    
 # ============================================
 # NOVOS ENDPOINTS PARA TURMAS
 # ============================================

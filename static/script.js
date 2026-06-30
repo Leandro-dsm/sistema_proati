@@ -373,3 +373,24 @@ document.getElementById("turma").addEventListener("change", async function(){
 
 
 carregarTurmasEmprestimo();
+
+async function carregarNotebooks() {
+
+    const resposta = await fetch("/api/buscar-notebooks");
+    const notebooks = await resposta.json();
+
+    const select = document.getElementById("notebook");
+
+    notebooks.forEach(item => {
+
+        select.innerHTML += `
+            <option value="${item.id_maquina}">
+                ${item.nome_maquina}
+            </option>
+        `;
+
+    });
+
+}
+
+carregarNotebooks();
