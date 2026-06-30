@@ -344,6 +344,75 @@ def limpar_todos_logs():
 # NOVOS ENDPOINTS PARA TURMAS
 # ============================================
 
+@app.route("/api/buscar-turmas", methods=["GET"])
+@login_obrigatorio
+def buscar_turmas():
+
+    conn = obter_conexao()
+    cursor = conn.cursor()
+
+    try:
+
+        cursor.execute("""
+            SELECT DISTINCT turma
+            FROM alunos
+            WHERE turma IS NOT NULL
+            AND turma <> ''
+            ORDER BY turma
+        """)
+
+        turmas = cursor.fetchall()
+
+        return jsonify(turmas), 200
+
+    except Exception as e:
+
+        return jsonify({
+            "status": "Erro",
+            "mensagem": str(e)
+        }), 500
+
+    finally:
+
+        cursor.close()
+        conn.close()
+
+
+@app.route("/api/buscar-alunos/<string:turma>", methods=["GET"])
+@login_obrigatorio
+def buscar_alunos(turma):
+
+    conn = obter_conexao()
+    cursor = conn.cursor()
+
+    try:
+
+        cursor.execute("""
+            SELECT
+                id_aluno,
+                nome_aluno,
+                ra
+            FROM alunos
+            WHERE turma = %s
+            ORDER BY nome_aluno
+        """, (turma,))
+
+        alunos = cursor.fetchall()
+
+        return jsonify(alunos), 200
+
+    except Exception as e:
+
+        return jsonify({
+            "status": "Erro",
+            "mensagem": str(e)
+        }), 500
+
+    finally:
+
+        cursor.close()
+        conn.close()
+
 @app.route('/api/turmas', methods=['GET'])
 @login_obrigatorio
 def listar_turmas():

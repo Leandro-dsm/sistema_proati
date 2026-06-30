@@ -312,3 +312,64 @@ async function carregarTurmas() {
 }
 
 carregarTurmas();
+
+async function carregarTurmasEmprestimo() {
+
+    const resposta = await fetch("/api/buscar-turmas");
+
+    const turmas = await resposta.json();
+
+    const select = document.getElementById("turma");
+
+    turmas.forEach(item => {
+
+        select.innerHTML += `
+            <option value="${item.turma}">
+                ${item.turma}
+            </option>
+        `;
+
+    });
+
+}
+
+
+document.getElementById("turma").addEventListener("change", async function(){
+
+    const turma = this.value;
+
+    const selectAluno =
+        document.getElementById("aluno");
+
+    selectAluno.innerHTML =
+        `<option>Carregando...</option>`;
+
+    if(!turma){
+        selectAluno.innerHTML =
+            `<option>Selecione um aluno</option>`;
+        return;
+    }
+
+    const resposta =
+        await fetch(`/api/buscar-alunos/${turma}`);
+
+    const alunos =
+        await resposta.json();
+
+    selectAluno.innerHTML =
+        `<option value="">Selecione um aluno</option>`;
+
+    alunos.forEach(aluno => {
+
+        selectAluno.innerHTML += `
+            <option value="${aluno.id_aluno}">
+                ${aluno.nome_aluno}
+            </option>
+        `;
+
+    });
+
+});
+
+
+carregarTurmasEmprestimo();
