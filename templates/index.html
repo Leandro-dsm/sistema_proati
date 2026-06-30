@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sistema GENI — Dashboard Corporativo</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<style>
+  /* Correções e Ajustes de UI/UX (Melhoria 6) */
+  body.dark-mode { background: #0f172a; color: #f8fafc; }
+  body.dark-mode .topbar, body.dark-mode .table-wrap, body.dark-mode .card, body.dark-mode .modal-content { background: #1e293b; border-color: #334155; color: #f8fafc; }
+  body.dark-mode .topbar-title, body.dark-mode .section-title, body.dark-mode .form-label { color: #f1f5f9; }
+  body.dark-mode tbody tr { border-color: #334155; color: #cbd5e1; }
+  body.dark-mode tbody tr:hover { background: #334155; }
+  body.dark-mode tbody td { color: #cbd5e1; }
+  body.dark-mode .form-control { background: #0f172a; border-color: #475569; color: #fff; }
+
+  .btn-table { padding: 4px 10px; font-size: 11px; border-radius: 6px; cursor: pointer; border: none; font-weight: 600; margin-right: 4px; }
+  .btn-edit { background: #e0f2fe; color: #0369a1; }
+  .btn-delete { background: #fee2e2; color: #b91c1c; }
+  
+  /* Modal Estruturado que faltava no CSS base */
+  .modal-backdrop { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 2000; align-items: center; justify-content: center; }
+  .modal-backdrop.open { display: flex; }
+  .modal-content { background: #fff; padding: 24px; border-radius: 10px; width: 100%; max-width: 460px; border: 1px solid var(--border); box-shadow: var(--shadow); }
+  
+  .log-panel-meta { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; background: rgba(0,0,0,0.02); padding: 8px 12px; border-radius: 6px; border: 1px solid var(--border); }
+  body.dark-mode .log-panel-meta { background: rgba(255,255,255,0.02); border-color: #334155; }
+  .pulse-indicator { width: 8px; height: 8px; background: #10b981; border-radius: 50%; display: inline-block; animation: pulse 2s infinite; }
+  @keyframes pulse { 0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(16,185,129,0.7); } 70% { transform: scale(1); box-shadow: 0 0 0 6px rgba(16,185,129,0); } 100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(16,185,129,0); } }
+  
+  .search-container { margin-bottom: 14px; display: flex; gap: 10px; }
+  .input-search { flex: 1; padding: 10px 14px; border-radius: 8px; border: 1.5px solid var(--border); font-size: 13px; font-family: inherit; }
+  body.dark-mode .input-search { background: #1e293b; border-color: #475569; color: #fff; }
+</style>
+</head>
+<body>
+
+<div id="login-screen">
+  <div class="login-card">
+    <div class="login-logo">
+      <div class="icon">💻</div>
+      <div class="text-wrap"><h1>GENI</h1><p>Acesso Restrito</p></div>
+    </div>
+    <h2>Autenticação Corporativa</h2>
+    <div class="form-group">
+      <label class="form-label">Usuário</label>
+      <input class="form-control" type="text" placeholder="admin" id="login-user">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Senha</label>
+      <input class="form-control" type="password" placeholder="••••••••" id="login-pass">
+    </div>
+    <button class="btn btn-primary" style="width:100%; justify-content:center;" onclick="executarLogin()">Entrar</button>
+  </div>
+</div>
+
+<div id="app" style="display:none; width:100%;">
+  <nav class="sidebar">
+    <div class="sidebar-logo">
+      <div class="logo-icon">💻</div><div class="logo-text">GENI PLATFORM</div><div class="logo-sub">Enterprise v2.0</div>
+    </div>
+    <div class="sidebar-nav">
+      <button class="nav-item active" onclick="navegarAbas('home', this)"><span class="nav-icon">🏠</span> Dashboard</button>
+      <button class="nav-item" onclick="navegarAbas('emprestimos', this)"><span class="nav-icon">📋</span> Novo Empréstimo</button>
+      <button class="nav-item" onclick="navegarAbas('bi', this)"><span class="nav-icon">📊</span> BI Estatísticas</button>
+    </div>
+    <div class="sidebar-footer">
+      <button class="btn btn-ghost btn-sm" style="width:100%; margin-bottom: 10px;" onclick="alternarTemaVisual()">🌓 Tema Visual</button>
+      GENI &copy; 2026
+    </div>
+  </nav>
+
+  <main class="main">
+    <div class="topbar">
+      <div class="topbar-title" id="topbar-title">Visão Operacional</div>
+      <div class="topbar-right">
+        <span style="font-size:13px; margin-right:10px;">Operador: <strong id="user-display">Admin</strong></span>
+        <button class="btn btn-ghost btn-sm" style="color:var(--red);" onclick="executarLogout()">Sair</button>
+      </div>
+    </div>
+
+    <div class="page active" id="page-home">
+      <div class="stat-grid" style="grid-template-columns: repeat(2, 1fr); margin-bottom: 20px;">
+        <div class="stat-card disponivel">
+          <div class="stat-label">Máquinas Livres</div><div class="stat-value" id="count-disponiveis">40</div>
+        </div>
+        <div class="stat-card em-uso">
+          <div class="stat-label">Empréstimos Manuais Ativos</div><div class="stat-value" id="count-uso">0</div>
+        </div>
+      </div>
+
+      <div style="display:grid; grid-template-columns: 1.6fr 1.4fr; gap:24px;">
+        <div>
+          <div class="section-header"><div class="section-title">Controle Manual de Alocação</div></div>
+          <div class="search-container">
+            <input type="text" id="campo-busca" class="input-search" placeholder="🔍 Filtrar por Aluno, Máquina ou Sala..." oninput="filtrarGradeEmprestimos()">
+            <button class="btn btn-outline btn-sm" onclick="exportarRelatorioCSV()">📥 Exportar CSV</button>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Sala</th><th>Beneficiário</th><th>Equipamento</th><th>Localização</th><th>Ações</th></tr></thead>
+              <tbody id="tabela-emprestimos-corpo"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <div>
+          <div class="log-panel-meta">
+            <div style="font-size:12px; font-weight:700;"><span class="pulse-indicator"></span> Auditoria Digital Automática (<span id="log-qty">0</span>)</div>
+            <button class="btn btn-ghost btn-sm" style="color:#b91c1c; background: transparent; border:none; cursor:pointer;" onclick="limparRegistrosAuditoria()">Limpar</button>
+          </div>
+          <div class="table-wrap" style="max-height: 380px; overflow-y: auto;">
+            <table>
+              <thead><tr><th>Notebook</th><th>Conta Identificada</th><th>Último Sinal</th></tr></thead>
+              <tbody id="tabela-logs-corpo"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="page" id="page-emprestimos">
+      <div class="section-header"><div class="section-title">Registrar Novo Empréstimo Ativo</div></div>
+      <div class="card" style="max-width: 500px; margin-top:15px;">
+        <div class="form-group"><label class="form-label">Código da Máquina</label><input type="text" id="form-notebook" class="form-control" placeholder="Ex: NOTE-22"></div>
+        <div class="form-group"><label class="form-label">Nome Completo do Aluno</label><input type="text" id="form-aluno" class="form-control" placeholder="Ex: Ana Clara Silva"></div>
+        <div class="form-group"><label class="form-label">Sala / Turma</label><input type="text" id="form-sala" class="form-control" placeholder="Ex: 3º Ano Técnico"></div>
+        <div class="form-group"><label class="form-label">Armazenamento Base</label><input type="text" id="form-local" class="form-control" placeholder="Ex: Armário PROATI"></div>
+        <button class="btn btn-primary" style="width:100%; justify-content:center; margin-top:15px;" onclick="enviarFormularioEmprestimo()">Gravar Registro</button>
+      </div>
+    </div>
+
+    <div class="page" id="page-bi">
+      <div class="section-header"><div class="section-title">Análise de Demanda Estatística</div></div>
+      <div class="card" style="max-width: 600px; margin-top:15px;">
+        <h4 style="margin-bottom:15px; font-size:14px; text-align:center; color: var(--navy);">Top 5 Salas com Maior Volume de Requisições</h4>
+        <canvas id="graficoDemandas"></canvas>
+      </div>
+    </div>
+  </main>
+</div>
+
+<div class="modal-backdrop" id="modal-edicao">
+  <div class="modal-content">
+    <div class="section-title" style="margin-bottom:15px; font-size:16px; font-weight:700;">Atualizar Dados de Alocação</div>
+    <input type="hidden" id="edit-id">
+    <div class="form-group"><label class="form-label">Notebook</label><input type="text" id="edit-notebook" class="form-control"></div>
+    <div class="form-group"><label class="form-label">Aluno</label><input type="text" id="edit-aluno" class="form-control"></div>
+    <div class="form-group"><label class="form-label">Sala</label><input type="text" id="edit-sala" class="form-control"></div>
+    <div class="form-group"><label class="form-label">Localização</label><input type="text" id="edit-local" class="form-control"></div>
+    <div style="display:flex; gap:10px; justify-content:flex-end; margin-top:20px;">
+      <button class="btn btn-ghost" onclick="fecharModalEdicao()">Voltar</button>
+      <button class="btn btn-primary" onclick="salvarAlteracaoCadastral()">Salvar</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast-container" class="toast-container"></div>
+<script src="{{ url_for('static', filename='script.js') }}"></script>
+</body>
+</html>
