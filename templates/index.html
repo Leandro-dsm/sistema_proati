@@ -66,6 +66,7 @@
       <button class="nav-item active" onclick="navegarAbas('home', this)"><span class="nav-icon">🏠</span> Dashboard</button>
       <button class="nav-item" onclick="navegarAbas('emprestimos', this)"><span class="nav-icon">📋</span> Novo Empréstimo</button>
       <button class="nav-item" onclick="navegarAbas('bi', this)"><span class="nav-icon">📊</span> BI Estatísticas</button>
+      <button class="nav-item" onclick="navegarAbas('turmas', this)"><span class="nav-icon">👥</span> Turmas</button>
     </div>
     <div class="sidebar-footer">
       <button class="btn btn-ghost btn-sm" style="width:100%; margin-bottom: 10px;" onclick="alternarTemaVisual()">🌓 Tema Visual</button>
@@ -140,6 +141,48 @@
         <canvas id="graficoDemandas"></canvas>
       </div>
     </div>
+
+    <div class="page" id="page-turmas">
+      <div class="section-header">
+        <div class="section-title">Gerenciamento de Turmas</div>
+      </div>
+      <div class="card" style="max-width: 600px; margin-top:15px;">
+        <p style="margin-bottom: 10px;">Turmas cadastradas</p>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Turma</th><th>Quantidade de Alunos</th></tr></thead>
+            <tbody id="tabela-turmas-corpo">
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <div class="card cadastrar-turmas" style="max-width: 600px; margin-top:15px;">
+        <p>Importar Turmas via Planilha Excel</p>
+
+        <form class="form-arquivo" id="uploadForm">
+
+        <label for="arquivo" class="btn-upload">
+            📁 Selecionar planilha
+        </label>
+
+        <input
+            type="file"
+            id="arquivo"
+            accept=".xlsx,.xls"
+        >
+
+        <span id="nomeArquivo">
+            Nenhum arquivo selecionado
+        </span>
+
+        <button type="submit">
+            Enviar
+        </button>
+
+      </form>
+    </div>
+    </div>
+  </div>
   </main>
 </div>
 

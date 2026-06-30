@@ -160,7 +160,7 @@ function navegarAbas(page, btn) {
     document.getElementById(`page-${page}`).classList.add('active');
     if(btn) btn.classList.add('active');
     
-    const titles = { 'home': 'Visão Operacional', 'emprestimos': 'Registrar Novo Empréstimo Ativo', 'bi': 'Análise de Demanda Estatística' };
+    const titles = { 'home': 'Visão Operacional', 'emprestimos': 'Registrar Novo Empréstimo Ativo', 'bi': 'Análise de Demanda Estatística', 'turmas': 'Gerenciamento de Turmas' };
     document.getElementById('topbar-title').innerText = titles[page];
 }
 
@@ -227,3 +227,88 @@ function removerRegistroEmprestimo(id) {
 function limparRegistrosAuditoria() {
     if(confirm("Zerar logs automáticos da tela?")) fetch('/api/logs', { method: 'DELETE' }).then(() => sincronizarNucleoDashboard());
 }
+
+const arquivo = document.getElementById("arquivo");
+const nomeArquivo = document.getElementById("nomeArquivo");
+const form = document.getElementById("uploadForm");
+
+// Mostrar nome do arquivo ao selecionar
+arquivo.addEventListener("change", () => {
+
+    if (arquivo.files.length > 0) {
+        nomeArquivo.textContent =
+            arquivo.files[0].name;
+    } else {
+        nomeArquivo.textContent =
+            "Nenhum arquivo selecionado";
+    }
+
+});
+
+
+// Enviar formulário
+form.addEventListener("submit", async (e) => {
+
+    e.preventDefault();
+
+    if (!arquivo.files[0]) {
+        alert("Selecione um arquivo");
+        return;
+    }
+
+    const formData = new FormData();
+
+    formData.append(
+        "excel",
+        arquivo.files[0]
+    );
+
+    try {
+
+        const resposta =
+        await fetch("/api/importar", {
+            method: "POST",
+            body: formData
+        });
+
+        const dados =
+        await resposta.json();
+
+        alert(dados.mensagem);
+
+    } catch (err) {
+
+        console.error(err);
+
+        alert("Erro ao enviar");
+
+    }
+
+});
+
+async function carregarTurmas() {
+
+    const resposta = await fetch("/api/turmas");
+
+    const dados = await resposta.json();
+
+    const tabela = document.getElementById("tabela-turmas-corpo");
+
+    tabela.innerHTML = "";
+
+    dados.forEach(item => {
+
+        const linha = document.createElement("tr");
+
+        linha.innerHTML = `
+            <td>${item.turma}</td>
+            <td>${item.quantidade}</td>
+        `;
+
+        tabela.appendChild(linha);
+
+    });
+
+}
+
+carregarTurmas();
