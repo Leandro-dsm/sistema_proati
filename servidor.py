@@ -35,9 +35,9 @@ def iniciar_banco():
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS alunos (
             id_aluno INT AUTO_INCREMENT PRIMARY KEY,
-            turma VARCHAR(10) UNIQUE,
-            nome_aluno VARCHAR(100),
-            ra CHAR(14)
+            turma CHAR(2) NOT NULL,
+            nome_aluno VARCHAR(100) NOT NULL,
+            ra CHAR(14) UNIQUE
         )
     ''')
     
@@ -45,10 +45,14 @@ def iniciar_banco():
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS maquinas (
             id_maquina INT AUTO_INCREMENT PRIMARY KEY,
-            codigo_serie VARCHAR(50) UNIQUE,
+            numero_serie VARCHAR(20) UNIQUE,
             nome_maquina VARCHAR(20),
             descricao TEXT,
-            status_maquina ENUM('disponivel', 'em manutencao', 'analise') DEFAULT 'disponivel'
+            status_maquina ENUM(
+                "disponivel",
+                "em manutencao",
+                "analise"
+            ) DEFAULT "disponivel"
         )
     ''')
     
@@ -159,8 +163,8 @@ def criar_emprestimo():
     dados = request.json or {}
     notebook = dados.get('notebook', '').upper().strip()
     aluno = dados.get('aluno', '').strip()
-    sala = dados.get('sala_aluno', '').strip()
-    local = dados.get('local_notebook', '').strip()
+    #sala = dados.get('sala_aluno', '').strip()
+    #local = dados.get('local_notebook', '').strip()
     agora = datetime.now().strftime('%d/%m/%Y %H:%M:%S')
     
     if not notebook or not aluno:
@@ -175,9 +179,9 @@ def criar_emprestimo():
     
     if aluno_existente:
         id_aluno = aluno_existente['id_aluno']
-    else:
-        cursor.execute("INSERT INTO alunos (nome_aluno, turma) VALUES (%s, %s)", (aluno, sala))
-        id_aluno = cursor.lastrowid
+    # else:
+    #     cursor.execute("INSERT INTO alunos (nome_aluno, turma) VALUES (%s, %s)", (aluno, sala))
+    #     id_aluno = cursor.lastrowid
     
     # Verifica se a máquina já existe
     cursor.execute("SELECT id_maquina FROM maquinas WHERE nome_maquina = %s", (notebook,))
@@ -185,9 +189,9 @@ def criar_emprestimo():
     
     if maquina_existente:
         id_maquina = maquina_existente['id_maquina']
-    else:
-        cursor.execute("INSERT INTO maquinas (nome_maquina, descricao) VALUES (%s, %s)", (notebook, local))
-        id_maquina = cursor.lastrowid
+    # else:
+    #     cursor.execute("INSERT INTO maquinas (nome_maquina, descricao) VALUES (%s, %s)", (notebook, local))
+    #     id_maquina = cursor.lastrowid
     
     # Cria a movimentação
     cursor.execute('''
@@ -351,7 +355,7 @@ def listar_notebooks():
     cursor.execute('''
         SELECT id_maquina, nome_maquina
         FROM maquinas
-        WHERE status = 'DISPONIVEL'
+        WHERE status_maquina = 'disponivel'
         ORDER BY nome_maquina
     ''')
 
@@ -360,6 +364,23 @@ def listar_notebooks():
 
     return jsonify(notebooks), 200
 
+@app.route('/api/todos-notebooks', methods=['GET'])
+@login_obrigatorio
+def listar_todos_notebooks():
+    """Lista todos os notebooks"""
+    conn = obter_conexao()
+    cursor = conn.cursor()
+
+    cursor.execute('''
+        SELECT id_maquina, nome_maquina, numero_serie, descricao, status_maquina
+        FROM maquinas
+        ORDER BY nome_maquina
+    ''')
+
+    notebooks = [dict(row) for row in cursor.fetchall()]
+    conn.close()
+
+    return jsonify(notebooks), 200
 
 # @api.route('/api/cadastrar-notebook', methods=['POST'])
 # @login_obrigatorio

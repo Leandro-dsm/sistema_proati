@@ -505,6 +505,14 @@
     margin-bottom: 18px;
   }
 
+  .form-group select {
+    border-radius: 30px;
+    width: 300px;
+    height: 50px;
+    font-size: 14px;
+    padding: 0 16px;
+  }
+
   .form-label {
     display: block;
     font-size: 12.5px;

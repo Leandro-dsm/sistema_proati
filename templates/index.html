@@ -67,6 +67,7 @@
       <button class="nav-item" onclick="navegarAbas('emprestimos', this)"><span class="nav-icon">📋</span> Novo Empréstimo</button>
       <button class="nav-item" onclick="navegarAbas('bi', this)"><span class="nav-icon">📊</span> BI Estatísticas</button>
       <button class="nav-item" onclick="navegarAbas('turmas', this)"><span class="nav-icon">👥</span> Turmas</button>
+      <button class="nav-item" onclick="navegarAbas('maquinas', this)"><span class="nav-icon">💻</span> Máquinas</button>
     </div>
     <div class="sidebar-footer">
       <button class="btn btn-ghost btn-sm" style="width:100%; margin-bottom: 10px;" onclick="alternarTemaVisual()">🌓 Tema Visual</button>
@@ -143,9 +144,7 @@
           </select>
         </div>
 
-
-        <div class="form-group"><label class="form-label">Sala / Turma</label><input type="text" id="form-sala" class="form-control" placeholder="Ex: 3º Ano Técnico"></div>
-        <div class="form-group"><label class="form-label">Armazenamento Base</label><input type="text" id="form-local" class="form-control" placeholder="Ex: Armário PROATI"></div>
+        <!-- <div class="form-group"><label class="form-label">Armazenamento Base</label><input type="text" id="form-local" class="form-control" placeholder="Ex: Armário PROATI"></div> -->
         <button class="btn btn-primary" style="width:100%; justify-content:center; margin-top:15px;" onclick="enviarFormularioEmprestimo()">Gravar Registro</button>
       </div>
     </div>
@@ -198,6 +197,47 @@
       </form>
     </div>
     </div>
+
+    <div class="page" id="page-maquinas">
+      <div class="section-header">
+        <div class="section-title">Gerenciamento de Máquinas</div>
+      </div>
+      <div class="card" style="max-width: 600px; margin-top:15px;">
+        <p style="margin-bottom: 10px;">Máquinas cadastradas</p>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Notebook</th><th>Nome Dispositivo</th><th>Número de Série</th><th>Status</th><th>Descrição</th></tr></thead>
+            <tbody id="tabela-maquinas-corpo">
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <div>
+        <div class="card cadastrar-turmas" style="max-width: 600px; margin-top:15px;">
+        <p>Importar Máquinas via Planilha Excel</p>
+
+        <form class="form-arquivo" id="uploadFormMaquinas">
+
+        <label for="arquivoMaquinas" class="btn-upload">
+            📁 Selecionar planilha
+        </label>
+
+        <input
+            type="file"
+            id="arquivoMaquinas"
+            accept=".xlsx,.xls"
+        >
+
+        <span id="nomeArquivoMaquinas">
+            Nenhum arquivo selecionado
+        </span>
+
+        <button type="submit">
+            Enviar
+        </button>
+
+      </form>
+      </div>
   </div>
   </main>
 </div>

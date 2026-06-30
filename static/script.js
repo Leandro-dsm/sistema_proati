@@ -171,21 +171,21 @@ function enviarMensagemToast(msg, tipo) {
 }
 
 function enviarFormularioEmprestimo() {
-    const notebook = document.getElementById('form-notebook').value.trim();
-    const aluno = document.getElementById('form-aluno').value.trim();
-    const sala = document.getElementById('form-sala').value.trim();
-    const local = document.getElementById('form-local').value.trim();
+    const notebook = document.getElementById('notebook').value.trim();
+    const aluno = document.getElementById('aluno').value.trim();
+    // const sala = document.getElementById('form-sala').value.trim();
+    // const local = document.getElementById('form-local').value.trim();
 
     if(!notebook || !aluno) { enviarMensagemToast("Preencha os dados obrigatórios.", "error"); return; }
 
     fetch('/api/emprestimo', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ notebook, aluno, sala_aluno: sala, local_notebook: local })
+        body: JSON.stringify({ notebook, aluno}) // sala_aluno: sala, local_notebook: local
     }).then(res => res.json()).then(() => {
         enviarMensagemToast("Empréstimo gravado!", "success");
-        document.getElementById('form-notebook').value = '';
-        document.getElementById('form-aluno').value = '';
+        document.getElementById('notebook').value = '';
+        document.getElementById('aluno').value = '';
         navegarAbas('home', document.querySelector('.nav-item'));
         sincronizarNucleoDashboard();
     });
@@ -231,6 +231,61 @@ function limparRegistrosAuditoria() {
 const arquivo = document.getElementById("arquivo");
 const nomeArquivo = document.getElementById("nomeArquivo");
 const form = document.getElementById("uploadForm");
+
+const arquivoMaquinas = document.getElementById("arquivoMaquinas");
+const nomeArquivoMaquinas = document.getElementById("nomeArquivoMaquinas");
+const formMaquinas = document.getElementById("uploadFormMaquinas");
+
+arquivoMaquinas.addEventListener("change", () => {
+
+    if (arquivoMaquinas.files.length > 0) {
+        nomeArquivoMaquinas.textContent =
+            arquivoMaquinas.files[0].name;
+    } else {
+        nomeArquivoMaquinas.textContent =
+            "Nenhum arquivo selecionado";
+    }
+
+});
+
+formMaquinas.addEventListener("submit", async (e) => {
+
+    e.preventDefault();
+
+    if (!arquivoMaquinas.files[0]) {
+        alert("Selecione um arquivo");
+        return;
+    }
+
+    const formData = new FormData();
+
+    formData.append(
+        "excel",
+        arquivoMaquinas.files[0]
+    );
+
+    try {
+
+        const resposta =
+        await fetch("/api/cadastrar-notebook", {
+            method: "POST",
+            body: formData
+        });
+
+        const dados =
+        await resposta.json();
+
+        alert(dados.mensagem);
+
+    } catch (err) {
+
+        console.error(err);
+
+        alert("Erro ao enviar");
+
+    }
+
+});
 
 // Mostrar nome do arquivo ao selecionar
 arquivo.addEventListener("change", () => {
@@ -285,6 +340,36 @@ form.addEventListener("submit", async (e) => {
     }
 
 });
+
+async function carregarMaquinas() {
+
+    const resposta = await fetch("/api/todos-notebooks");
+
+    const dados = await resposta.json();
+
+    const tabela = document.getElementById("tabela-maquinas-corpo");
+
+    tabela.innerHTML = "";
+
+    dados.forEach(item => {
+
+        const linha = document.createElement("tr");
+
+        linha.innerHTML = `
+            <td>${item.id_maquina}</td>
+            <td>${item.nome_maquina}</td>
+            <td>${item.numero_serie}</td>
+            <td>${item.descricao}</td>
+            <td>${item.status_maquina}</td>
+        `;
+
+        tabela.appendChild(linha);
+
+    });
+
+}
+
+carregarMaquinas();
 
 async function carregarTurmas() {
 
@@ -376,7 +461,7 @@ carregarTurmasEmprestimo();
 
 async function carregarNotebooks() {
 
-    const resposta = await fetch("/api/buscar-notebooks");
+    const resposta = await fetch("/api/notebooks");
     const notebooks = await resposta.json();
 
     const select = document.getElementById("notebook");
