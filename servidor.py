@@ -16,7 +16,7 @@ app.secret_key = secrets.token_hex(32)
 DB_CONFIG = {
     'host': 'localhost',        # Se for local, mantenha 'localhost'
     'user': 'root',             # Usuário padrão do MySQL
-    'password': 'mysql1234',     # ← COLOQUE A SENHA QUE VOCÊ DEFINIU
+    'password': 'mysql1234',    # ← COLOQUE A SENHA QUE VOCÊ DEFINIU
     'database': 'GeniCunha',    # Nome do banco de dados
     'charset': 'utf8mb4',
     'cursorclass': DictCursor   # Retorna resultados como dicionário
@@ -339,6 +339,114 @@ def limpar_todos_logs():
     conn.commit()
     conn.close()
     return jsonify({"status": "OK"}), 200
+
+# ============================================
+# NOVOS ENDPOINTS PARA TURMAS
+# ============================================
+
+@app.route('/api/turmas', methods=['GET'])
+@login_obrigatorio
+def listar_turmas():
+    """Lista todas as turmas com a quantidade de alunos"""
+    conn = obter_conexao()
+    cursor = conn.cursor()
+    
+    cursor.execute('''
+        SELECT turma, COUNT(*) as quantidade 
+        FROM alunos 
+        WHERE turma IS NOT NULL AND turma != ''
+        GROUP BY turma 
+        ORDER BY turma
+    ''')
+    
+    turmas = [dict(row) for row in cursor.fetchall()]
+    conn.close()
+    
+    return jsonify(turmas), 200
+
+@app.route('/api/importar', methods=['POST'])
+@login_obrigatorio
+def importar_turmas():
+    """Importa turmas de um arquivo Excel"""
+    
+    # Verifica se o arquivo foi enviado
+    if 'excel' not in request.files:
+        return jsonify({"mensagem": "Nenhum arquivo enviado"}), 400
+    
+    arquivo = request.files['excel']
+    
+    if arquivo.filename == '':
+        return jsonify({"mensagem": "Nome do arquivo vazio"}), 400
+    
+    # Verifica extensão
+    if not arquivo.filename.endswith(('.xlsx', '.xls')):
+        return jsonify({"mensagem": "Formato inválido. Use .xlsx ou .xls"}), 400
+    
+    try:
+        # Importa o pandas (se não tiver, instale com pip install pandas openpyxl)
+        import pandas as pd
+        
+        # Lê o Excel
+        df = pd.read_excel(arquivo)
+        
+        # Verifica se tem as colunas necessárias
+        coluna_turma = None
+        coluna_aluno = None
+        
+        for col in df.columns:
+            if 'turma' in col.lower():
+                coluna_turma = col
+            if 'aluno' in col.lower() or 'nome' in col.lower():
+                coluna_aluno = col
+        
+        if not coluna_turma or not coluna_aluno:
+            return jsonify({
+                "mensagem": "Arquivo deve ter colunas 'turma' e 'nome_aluno' (ou 'aluno')"
+            }), 400
+        
+        total_importados = 0
+        
+        conn = obter_conexao()
+        cursor = conn.cursor()
+        
+        # Para cada linha do Excel
+        for _, row in df.iterrows():
+            turma = str(row[coluna_turma]).strip()
+            nome_aluno = str(row[coluna_aluno]).strip()
+            
+            # Pula linhas vazias
+            if not turma or not nome_aluno or nome_aluno == 'nan' or turma == 'nan':
+                continue
+            
+            # Verifica se o aluno já existe
+            cursor.execute(
+                "SELECT id_aluno FROM alunos WHERE nome_aluno = %s AND turma = %s",
+                (nome_aluno, turma)
+            )
+            
+            if not cursor.fetchone():
+                # Insere o aluno
+                cursor.execute(
+                    "INSERT INTO alunos (nome_aluno, turma) VALUES (%s, %s)",
+                    (nome_aluno, turma)
+                )
+                total_importados += 1
+        
+        conn.commit()
+        conn.close()
+        
+        return jsonify({
+            "mensagem": f"Arquivo importado com sucesso! {total_importados} alunos cadastrados."
+        }), 200
+        
+    except ImportError:
+        return jsonify({
+            "mensagem": "Biblioteca pandas não instalada. Execute: pip install pandas openpyxl"
+        }), 500
+    except Exception as e:
+        return jsonify({
+            "mensagem": f"Erro ao processar arquivo: {str(e)}"
+        }), 500
 
 # ============================================
 # INICIALIZAÇÃO DO SERVIDOR
