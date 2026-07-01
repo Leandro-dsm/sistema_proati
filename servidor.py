@@ -51,7 +51,8 @@ def iniciar_banco():
             status_maquina ENUM(
                 "disponivel",
                 "em manutencao",
-                "analise"
+                "analise",
+                "indisponivel"
             ) DEFAULT "disponivel"
         )
     ''')
@@ -382,45 +383,204 @@ def listar_todos_notebooks():
 
     return jsonify(notebooks), 200
 
-# @api.route('/api/cadastrar-notebook', methods=['POST'])
-# @login_obrigatorio
-# def cadastrar_notebook():
+@app.route('/api/cadastrar-notebook', methods=['POST'])
+@login_obrigatorio
+def cadastrar_notebook():
 
-#     if 'excel' not in request.files:
-#         return jsonify({"mensagem": "Nenhum arquivo enviado"}), 400
-    
-#     arquivo = request.files['excel']
-    
-#     if arquivo.filename == '':
-#         return jsonify({"mensagem": "Nome do arquivo vazio"}), 400
-    
-#     # Verifica extensão
-#     if not arquivo.filename.endswith(('.xlsx', '.xls')):
-#         return jsonify({"mensagem": "Formato inválido. Use .xlsx ou .xls"}), 400
-    
-#     try:
-#         # Importa o pandas (se não tiver, instale com pip install pandas openpyxl)
-#         import pandas as pd
-        
-#         # Lê o Excel
-#         df = pd.read_excel(arquivo)
-        
-#         # Verifica se tem as colunas necessárias
-#         coluna_turma = None
-#         coluna_aluno = None
-        
-#         for col in df.columns:
-#             if 'turma' in col.lower():
-#                 coluna_turma = col
-#             if 'aluno' in col.lower() or 'nome' in col.lower():
-#                 coluna_aluno = col
-        
-#         if not coluna_turma or not coluna_aluno:
-#             return jsonify({
-#                 "mensagem": "Arquivo deve ter colunas 'turma' e 'nome_aluno' (ou 'aluno')"
-#             }), 400
-        
-#         total_importados = 0
+    if 'excel' not in request.files:
+        return jsonify({
+            "mensagem": "Nenhum arquivo enviado"
+        }), 400
+
+    arquivo = request.files['excel']
+
+    if arquivo.filename == '':
+        return jsonify({
+            "mensagem": "Nome do arquivo vazio"
+        }), 400
+
+    if not arquivo.filename.lower().endswith(('.xlsx', '.xls')):
+        return jsonify({
+            "mensagem": "Formato inválido. Use .xlsx ou .xls"
+        }), 400
+
+    conn = None
+
+    try:
+
+        import pandas as pd
+
+        # Ler Excel
+        df = pd.read_excel(arquivo)
+
+        # Remove somente linhas totalmente vazias
+        df = df.dropna(
+            subset=df.columns,
+            how='all'
+        )
+
+        # Normaliza cabeçalhos
+        df.columns = (
+            df.columns
+            .astype(str)
+            .str.strip()
+            .str.lower()
+        )
+
+        # Encontrar colunas
+        mapa = {}
+
+        for col in df.columns:
+
+            nome = (
+                col
+                .replace(" ", "")
+                .replace("_", "")
+            )
+
+            if "numeroserie" in nome:
+                mapa["serie"] = col
+
+            elif "descricao" in nome:
+                mapa["descricao"] = col
+
+            elif "statuschamado" in nome:
+                mapa["status"] = col
+
+            elif "nomemaquina" in nome:
+                mapa["maquina"] = col
+
+        conn = obter_conexao()
+        cursor = conn.cursor()
+
+        total_importados = 0
+
+        for _, row in df.iterrows():
+
+            def pegar(chave):
+
+                coluna = mapa.get(chave)
+
+                if not coluna:
+                    return ''
+
+                valor = row[coluna]
+
+                if pd.isna(valor):
+                    return ''
+
+                return str(valor).strip()
+
+            numero_serie = pegar("serie")
+            descricao = pegar("descricao")
+            status = pegar("status")
+            nome_maquina = pegar("maquina")
+
+            # Remove valores "nan"
+            numero_serie = (
+                ''
+                if numero_serie.lower() == 'nan'
+                else numero_serie
+            )
+
+            descricao = (
+                ''
+                if descricao.lower() == 'nan'
+                else descricao
+            )
+
+            status = (
+                ''
+                if status.lower() == 'nan'
+                else status
+            )
+
+            nome_maquina = (
+                ''
+                if nome_maquina.lower() == 'nan'
+                else nome_maquina
+            )
+
+            # Impede máquina fantasma
+            if not any([
+                numero_serie,
+                descricao,
+                status,
+                nome_maquina
+            ]):
+                continue
+
+            # Ajustar status
+            status_upper = status.upper()
+
+            if status_upper == 'OK':
+                status = 'disponivel'
+
+            elif status_upper == 'NF' or status_upper == 'NF CHAMADO':
+                status = 'em manutencao'
+
+            elif status_upper ==  "*":
+                status = 'indisponivel'
+
+            else:
+                status = 'disponivel'
+
+            # Converter vazio para NULL
+            numero_serie = numero_serie or None
+            descricao = descricao or None
+            nome_maquina = nome_maquina or None
+
+            cursor.execute(
+                """
+                INSERT INTO maquinas
+                (
+                    numero_serie,
+                    descricao,
+                    status_maquina,
+                    nome_maquina
+                )
+                VALUES
+                (%s,%s,%s,%s)
+                """,
+                (
+                    numero_serie,
+                    descricao,
+                    status,
+                    nome_maquina
+                )
+            )
+
+            total_importados += 1
+
+        conn.commit()
+
+        return jsonify({
+            "mensagem":
+            f"Importação concluída. "
+            f"{total_importados} máquinas cadastradas."
+        }), 200
+
+    except ImportError:
+
+        return jsonify({
+            "mensagem":
+            "Instale: pip install pandas openpyxl"
+        }), 500
+
+    except Exception as e:
+
+        if conn:
+            conn.rollback()
+
+        return jsonify({
+            "mensagem":
+            f"Erro ao importar: {str(e)}"
+        }), 500
+
+    finally:
+
+        if conn:
+            conn.close()
     
 # ============================================
 # NOVOS ENDPOINTS PARA TURMAS
