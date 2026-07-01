@@ -2,25 +2,93 @@ let cacheEmprestimos = [];
 let sincronizadorId = null;
 let instanciaGrafico = null;
 
-function executarLogin() {
-    const usuario = document.getElementById('login-user').value.trim();
-    const senha = document.getElementById('login-pass').value.trim();
+async function executarLogin() {
 
-    fetch('/api/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ usuario, senha })
-    })
-    .then(res => { if(!res.ok) throw new Error(); return res.json(); })
-    .then(data => {
-        document.getElementById('login-screen').style.display = 'none';
-        document.getElementById('user-display').innerText = data.usuario;
-        document.getElementById('app').style.display = 'flex';
-        enviarMensagemToast("Autenticação validada via servidor!", "success");
+    const usuario =
+        document
+            .getElementById("login-user")
+            .value
+            .trim();
+
+    const senha =
+        document
+            .getElementById("login-pass")
+            .value
+            .trim();
+
+    try {
+
+        const resposta =
+            await fetch(
+                "/api/login",
+                {
+                    method: "POST",
+                    headers: {
+                        "Content-Type":
+                            "application/json"
+                    },
+                    body: JSON.stringify({
+                        usuario,
+                        senha
+                    })
+                }
+            );
+
+        if (!resposta.ok)
+            throw new Error();
+
+        const dados =
+            await resposta.json();
+
+        document.getElementById(
+            "login-screen"
+        ).style.display = "none";
+
+        document.getElementById(
+            "app"
+        ).style.display = "flex";
+
+        document.getElementById(
+            "user-display"
+        ).innerText =
+            dados.usuario;
+
+        await carregarMaquinas();
+
+        await carregarTurmas();
+
+        await carregarTurmasEmprestimo();
+
+        await carregarNotebooks();
+
         sincronizarNucleoDashboard();
-        sincronizadorId = setInterval(sincronizarNucleoDashboard, 4000);
-    })
-    .catch(() => enviarMensagemToast("Falha na autenticação corporativa.", "error"));
+
+        clearInterval(
+            sincronizadorId
+        );
+
+        sincronizadorId =
+            setInterval(
+                sincronizarNucleoDashboard,
+                4000
+            );
+
+        enviarMensagemToast(
+            "Autenticação validada!",
+            "success"
+        );
+
+    }
+
+    catch {
+
+        enviarMensagemToast(
+            "Falha na autenticação.",
+            "error"
+        );
+
+    }
+
 }
 
 function executarLogout() {
@@ -343,68 +411,95 @@ form.addEventListener("submit", async (e) => {
 
 async function carregarMaquinas() {
 
-    const resposta = await fetch("/api/todos-notebooks");
+    const resposta =
+        await fetch(
+            "/api/todos-notebooks"
+        );
 
-    const dados = await resposta.json();
+    if (!resposta.ok)
+        return;
 
-    const tabela = document.getElementById("tabela-maquinas-corpo");
+    const dados =
+        await resposta.json();
+
+    const tabela =
+        document.getElementById(
+            "tabela-maquinas-corpo"
+        );
 
     tabela.innerHTML = "";
 
     dados.forEach(item => {
 
-        const linha = document.createElement("tr");
-
-        linha.innerHTML = `
-            <td>${item.id_maquina}</td>
-            <td>${item.nome_maquina}</td>
-            <td>${item.numero_serie}</td>
-            <td>${item.descricao}</td>
-            <td>${item.status_maquina}</td>
+        tabela.innerHTML += `
+            <tr>
+                <td>${item.id_maquina}</td>
+                <td>${item.nome_maquina}</td>
+                <td>${item.numero_serie}</td>
+                <td>${item.descricao}</td>
+                <td>${item.status_maquina}</td>
+            </tr>
         `;
-
-        tabela.appendChild(linha);
 
     });
 
 }
-
-carregarMaquinas();
 
 async function carregarTurmas() {
 
-    const resposta = await fetch("/api/turmas");
+    const resposta =
+        await fetch(
+            "/api/turmas"
+        );
 
-    const dados = await resposta.json();
+    if (!resposta.ok)
+        return;
 
-    const tabela = document.getElementById("tabela-turmas-corpo");
+    const dados =
+        await resposta.json();
+
+    const tabela =
+        document.getElementById(
+            "tabela-turmas-corpo"
+        );
 
     tabela.innerHTML = "";
 
     dados.forEach(item => {
 
-        const linha = document.createElement("tr");
-
-        linha.innerHTML = `
-            <td>${item.turma}</td>
-            <td>${item.quantidade}</td>
+        tabela.innerHTML += `
+            <tr>
+                <td>${item.turma}</td>
+                <td>${item.quantidade}</td>
+            </tr>
         `;
-
-        tabela.appendChild(linha);
 
     });
 
 }
 
-carregarTurmas();
-
 async function carregarTurmasEmprestimo() {
 
-    const resposta = await fetch("/api/buscar-turmas");
+    const resposta =
+        await fetch(
+            "/api/buscar-turmas"
+        );
 
-    const turmas = await resposta.json();
+    if (!resposta.ok)
+        return;
 
-    const select = document.getElementById("turma");
+    const turmas =
+        await resposta.json();
+
+    const select =
+        document.getElementById(
+            "turma"
+        );
+
+    select.innerHTML =
+        `<option value="">
+            Selecione
+        </option>`;
 
     turmas.forEach(item => {
 
@@ -456,15 +551,28 @@ document.getElementById("turma").addEventListener("change", async function(){
 
 });
 
-
-carregarTurmasEmprestimo();
-
 async function carregarNotebooks() {
 
-    const resposta = await fetch("/api/notebooks");
-    const notebooks = await resposta.json();
+    const resposta =
+        await fetch(
+            "/api/notebooks"
+        );
 
-    const select = document.getElementById("notebook");
+    if (!resposta.ok)
+        return;
+
+    const notebooks =
+        await resposta.json();
+
+    const select =
+        document.getElementById(
+            "notebook"
+        );
+
+    select.innerHTML =
+        `<option value="">
+            Selecione
+        </option>`;
 
     notebooks.forEach(item => {
 
@@ -477,5 +585,3 @@ async function carregarNotebooks() {
     });
 
 }
-
-carregarNotebooks();
