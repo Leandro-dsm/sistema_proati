@@ -4,10 +4,17 @@ from pymysql.cursors import DictCursor
 import bcrypt
 from datetime import datetime
 import secrets
+from datetime import timedelta
+
+# app = Flask(__name__)
+# # Chave dinâmica para proteção das sessões
+# app.secret_key = secrets.token_hex(32)
 
 app = Flask(__name__)
-# Chave dinâmica para proteção das sessões
-app.secret_key = secrets.token_hex(32)
+
+app.config["SECRET_KEY"] = "geni_cunha_chave_super_secreta_2026"
+app.config["SESSION_PERMANENT"] = True
+app.permanent_session_lifetime = timedelta(hours=8)
 
 # ============================================
 # CONFIGURAÇÃO DO BANCO DE DADOS MYSQL
@@ -146,10 +153,19 @@ def api_login():
     cursor.execute("SELECT senha_hash FROM usuarios WHERE usuario = %s", (usuario,))
     registro = cursor.fetchone()
     conn.close()
-    
+
     if registro and bcrypt.checkpw(senha.encode('utf-8'), registro['senha_hash'].encode('utf-8')):
+
+        session.permanent = True
         session['usuario_logado'] = usuario
-        return jsonify({"status": "OK", "usuario": usuario}), 200
+
+        return jsonify({
+            "status": "OK"
+        }), 200
+    
+    # if registro and bcrypt.checkpw(senha.encode('utf-8'), registro['senha_hash'].encode('utf-8')):
+    #     session['usuario_logado'] = usuario
+    #     return jsonify({"status": "OK", "usuario": usuario}), 200
     
     return jsonify({"status": "Erro", "mensagem": "Credenciais incorretas."}), 401
 
@@ -166,7 +182,7 @@ def criar_emprestimo():
     aluno = dados.get('aluno', '').strip()
     #sala = dados.get('sala_aluno', '').strip()
     #local = dados.get('local_notebook', '').strip()
-    agora = datetime.now().strftime('%d/%m/%Y %H:%M:%S')
+    agora = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
     
     if not notebook or not aluno:
         return jsonify({"status": "Erro", "mensagem": "Campos obrigatórios ausentes."}), 400
@@ -175,7 +191,7 @@ def criar_emprestimo():
     cursor = conn.cursor()
     
     # Verifica se o aluno já existe
-    cursor.execute("SELECT id_aluno FROM alunos WHERE nome_aluno = %s", (aluno,))
+    cursor.execute("SELECT id_aluno FROM alunos WHERE id_aluno = %s", (aluno,))
     aluno_existente = cursor.fetchone()
     
     if aluno_existente:
@@ -185,7 +201,7 @@ def criar_emprestimo():
     #     id_aluno = cursor.lastrowid
     
     # Verifica se a máquina já existe
-    cursor.execute("SELECT id_maquina FROM maquinas WHERE nome_maquina = %s", (notebook,))
+    cursor.execute("SELECT id_maquina FROM maquinas WHERE id_maquina = %s", (notebook,))
     maquina_existente = cursor.fetchone()
     
     if maquina_existente:
@@ -199,6 +215,9 @@ def criar_emprestimo():
         INSERT INTO movimentacoes (id_aluno, id_maquina, data_retirada, status_movimentacao)
         VALUES (%s, %s, %s, 'em_uso')
     ''', (id_aluno, id_maquina, agora))
+
+    # Atualiza o status da máquina para "em uso"
+    cursor.execute("UPDATE maquinas SET status_maquina = 'indisponivel' WHERE id_maquina = %s", (id_maquina,))
     
     # Log da ação
     cursor.execute("INSERT INTO logs_sistema (usuario_admin, acao, detalhes, horario) VALUES (%s, 'CRIAR_EMPRESTIMO', %s, %s)",
@@ -216,13 +235,10 @@ def buscar_dados():
     
     # Busca empréstimos ativos
     cursor.execute('''
-        SELECT m.id_movimentacao as id, ma.nome_maquina as notebook, a.nome_aluno as aluno, 
-               a.turma as sala_aluno, ma.descricao as local_notebook, m.data_retirada
-        FROM movimentacoes m
-        JOIN alunos a ON m.id_aluno = a.id_aluno
-        JOIN maquinas ma ON m.id_maquina = ma.id_maquina
-        WHERE m.status_movimentacao = 'em_uso'
-        ORDER BY m.id_movimentacao DESC
+        SELECT m.id_movimentacao AS id, a.turma AS turma, a.nome_aluno AS aluno,
+        ma.nome_maquina AS notebook, ma.descricao AS descricao, m.status_movimentacao, m.data_retirada
+        FROM movimentacoes m JOIN alunos a ON m.id_aluno = a.id_aluno JOIN maquinas ma ON m.id_maquina = ma.id_maquina
+        ORDER BY m.id_movimentacao DESC;
     ''')
     emprestados = [dict(row) for row in cursor.fetchall()]
     
@@ -255,8 +271,8 @@ def atualizar_emprestimo(id):
     dados = request.json or {}
     notebook = dados.get('notebook', '').upper().strip()
     aluno = dados.get('aluno', '').strip()
-    sala = dados.get('sala_aluno', '').strip()
-    local = dados.get('local_notebook', '').strip()
+    # sala = dados.get('sala_aluno', '').strip()
+    # local = dados.get('local_notebook', '').strip()
     agora = datetime.now().strftime('%d/%m/%Y %H:%M:%S')
 
     conn = obter_conexao()
@@ -300,7 +316,15 @@ def deletar_emprestimo(id):
         WHERE m.id_movimentacao = %s
     ''', (id,))
     dados = cursor.fetchone()
-    
+
+    #Atualiza o status da máquina para "disponivel" antes de deletar a movimentação
+    cursor.execute('''
+        UPDATE maquinas ma
+        JOIN movimentacoes m ON ma.id_maquina = m.id_maquina
+        SET ma.status_maquina = 'disponivel'
+        WHERE m.id_movimentacao = %s
+    ''', (id,))
+
     if dados:
         cursor.execute("INSERT INTO logs_sistema (usuario_admin, acao, detalhes, horario) VALUES (%s, 'DELETAR_EMPRESTIMO', %s, %s)",
                        (session['usuario_logado'], f"Removeu ID {id} - {dados['nome_aluno']} / {dados['nome_maquina']}", agora))
@@ -630,13 +654,9 @@ def buscar_alunos(turma):
     try:
 
         cursor.execute("""
-            SELECT
-                id_aluno,
-                nome_aluno,
-                ra
-            FROM alunos
-            WHERE turma = %s
-            ORDER BY nome_aluno
+            SELECT a.id_aluno, a.nome_aluno, a.ra FROM alunos a WHERE a.turma = %s
+            AND NOT EXISTS (SELECT 1 FROM movimentacoes m WHERE m.id_aluno = a.id_aluno AND m.status_movimentacao = 'em_uso')
+            ORDER BY a.nome_aluno;
         """, (turma,))
 
         alunos = cursor.fetchall()

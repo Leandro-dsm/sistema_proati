@@ -91,12 +91,27 @@ async function executarLogin() {
 
 }
 
-function executarLogout() {
-    fetch('/api/logout', { method: 'POST' }).then(() => {
-        clearInterval(sincronizadorId);
-        document.getElementById('app').style.display = 'none';
-        document.getElementById('login-screen').style.display = 'flex';
-    });
+async function executarLogout() {
+
+    await fetch(
+        "/api/logout",
+        {
+            method: "POST"
+        }
+    );
+
+    clearInterval(
+        sincronizadorId
+    );
+
+    document.getElementById(
+        "app"
+    ).style.display = "none";
+
+    document.getElementById(
+        "login-screen"
+    ).style.display = "flex";
+
 }
 
 function sincronizarNucleoDashboard() {
@@ -137,7 +152,8 @@ function filtrarGradeEmprestimos() {
             <td><span class="badge em-uso" style="background:#e8f5e9; color:#2e7d32; padding:3px 6px; border-radius:4px; font-size:11px;">${emp.sala_aluno || 'Geral'}</span></td>
             <td><strong>${emp.aluno}</strong></td>
             <td><code>${emp.notebook}</code></td>
-            <td><span class="badge analise" style="background:#f0f4f8; color:#37474f; padding:3px 6px; border-radius:4px; font-size:11px;">${emp.local_notebook || 'Armário'}</span></td>
+            <td><span class="badge analise" style="background:#f0f4f8; color:#37474f; padding:3px 6px; border-radius:4px; font-size:11px;">${emp.descricao}</span></td>
+            <td><span class="badge analise" style="background:#f0f4f8; color:#37474f; padding:3px 6px; border-radius:4px; font-size:11px;">${emp.status_movimentacao}</span></td>
             <td>
                 <button class="btn-table btn-edit" onclick="abrirModalEdicao(${emp.id})">Editar</button>
                 <button class="btn-table btn-delete" onclick="removerRegistroEmprestimo(${emp.id})">Excluir</button>
@@ -241,6 +257,7 @@ function enviarMensagemToast(msg, tipo) {
 function enviarFormularioEmprestimo() {
     const notebook = document.getElementById('notebook').value.trim();
     const aluno = document.getElementById('aluno').value.trim();
+    console.log(`Enviando formulário: Notebook=${notebook}, Aluno=${aluno}`);
     // const sala = document.getElementById('form-sala').value.trim();
     // const local = document.getElementById('form-local').value.trim();
 
@@ -585,3 +602,60 @@ async function carregarNotebooks() {
     });
 
 }
+
+window.addEventListener("load", async () => {
+
+    try {
+
+        const resposta =
+            await fetch("/api/dashboard");
+
+        if (!resposta.ok)
+            return;
+
+        const dados =
+            await resposta.json();
+
+        document.getElementById(
+            "login-screen"
+        ).style.display = "none";
+
+        document.getElementById(
+            "app"
+        ).style.display = "flex";
+
+        await carregarMaquinas();
+
+        await carregarTurmas();
+
+        await carregarTurmasEmprestimo();
+
+        await carregarNotebooks();
+
+        sincronizarNucleoDashboard();
+
+        clearInterval(
+            sincronizadorId
+        );
+
+        sincronizadorId =
+            setInterval(
+                sincronizarNucleoDashboard,
+                4000
+            );
+
+    }
+
+    catch {
+
+        document.getElementById(
+            "login-screen"
+        ).style.display = "flex";
+
+        document.getElementById(
+            "app"
+        ).style.display = "none";
+
+    }
+
+});
